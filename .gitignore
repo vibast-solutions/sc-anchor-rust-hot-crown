@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Anchor / Rust build artifacts
+target/
+
+# Environment
+.env
+
+# Solana keypairs
+*-keypair.json
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
