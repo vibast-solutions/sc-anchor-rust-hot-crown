@@ -8,7 +8,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("CnyJZNQRtwJcfwHcXSSi2TXYwwWx3vffeRJfu5qLEMAV");
+declare_id!("DwtDoUcKTCfkw2hSLwkYf6HVNFmtoMk7VYBjAJek5ixb");
 
 #[program]
 pub mod hot_crown {
