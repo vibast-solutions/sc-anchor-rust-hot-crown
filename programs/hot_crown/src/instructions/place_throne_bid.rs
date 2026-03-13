@@ -69,7 +69,7 @@ pub fn handler(ctx: Context<PlaceThroneBid>) -> Result<()> {
 
     let bid_whole = game_state.next_bid_amount;
     let bid_raw = bid_whole
-        .checked_mul(ONE_TOKEN)
+        .checked_mul(game_state.one_token)
         .ok_or(HotCrownError::Overflow)?;
 
     // Calculate splits

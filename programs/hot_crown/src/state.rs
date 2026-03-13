@@ -13,6 +13,7 @@ pub struct GameState {
     pub token_mint: Pubkey,
     pub dev_wallet_ata: Pubkey,
     pub paused: bool,
+    pub one_token: u64,           // 10^decimals, derived from mint at init
 
     // --- Phase ---
     pub phase: GamePhase,

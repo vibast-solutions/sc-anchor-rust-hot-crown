@@ -74,7 +74,7 @@ pub fn handler(ctx: Context<Attack>, soldiers: u64) -> Result<()> {
 
     // Calculate amounts
     let total_raw = soldiers
-        .checked_mul(ONE_TOKEN)
+        .checked_mul(game_state.one_token)
         .ok_or(HotCrownError::Overflow)?;
     let dev_fee = calc_dev_fee(total_raw)?;
     let army_contribution = total_raw

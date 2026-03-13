@@ -50,6 +50,7 @@ pub fn handler(ctx: Context<Initialize>) -> Result<()> {
     game_state.token_mint = ctx.accounts.token_mint.key();
     game_state.dev_wallet_ata = ctx.accounts.dev_wallet_ata.key();
     game_state.paused = false;
+    game_state.one_token = 10u64.pow(ctx.accounts.token_mint.decimals as u32);
 
     game_state.phase = GamePhase::Bidding;
 
