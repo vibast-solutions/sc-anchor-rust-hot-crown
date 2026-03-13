@@ -3,6 +3,7 @@ node_modules/
 
 # Anchor / Rust build artifacts
 target/
+.anchor/
 
 # Environment
 .env

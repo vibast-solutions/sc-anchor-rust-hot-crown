@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token_2022::Token2022;
+use anchor_spl::token_interface::{self, BurnChecked, Mint, TokenAccount, TransferChecked};
 
 use crate::constants::*;
 use crate::errors::HotCrownError;
@@ -21,23 +22,25 @@ pub struct FinalizeBattle<'info> {
         mut,
         associated_token::mint = token_mint,
         associated_token::authority = game_state,
+        associated_token::token_program = token_program,
     )]
-    pub throne_vault: Account<'info, TokenAccount>,
+    pub throne_vault: InterfaceAccount<'info, TokenAccount>,
 
     /// King's token account (receives payout if king survives)
     #[account(
         mut,
         token::mint = token_mint,
+        token::token_program = token_program,
     )]
-    pub king_token_account: Account<'info, TokenAccount>,
+    pub king_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = token_mint.key() == game_state.token_mint @ HotCrownError::InvalidPhase,
     )]
-    pub token_mint: Account<'info, Mint>,
+    pub token_mint: InterfaceAccount<'info, Mint>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
 }
 
 pub fn handler(ctx: Context<FinalizeBattle>) -> Result<()> {
@@ -62,6 +65,7 @@ pub fn handler(ctx: Context<FinalizeBattle>) -> Result<()> {
 
     let seeds = &[GAME_STATE_SEED, &[game_state.bump]];
     let signer_seeds = &[&seeds[..]];
+    let decimals = TOKEN_DECIMALS;
 
     let king_survives = game_state.defense_soldiers >= game_state.attack_soldiers;
 
@@ -78,26 +82,28 @@ pub fn handler(ctx: Context<FinalizeBattle>) -> Result<()> {
 
         // Transfer payout to king
         if king_payout > 0 {
-            token::transfer(
+            token_interface::transfer_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
-                    Transfer {
+                    TransferChecked {
                         from: ctx.accounts.throne_vault.to_account_info(),
+                        mint: ctx.accounts.token_mint.to_account_info(),
                         to: ctx.accounts.king_token_account.to_account_info(),
                         authority: game_state.to_account_info(),
                     },
                     signer_seeds,
                 ),
                 king_payout,
+                decimals,
             )?;
         }
 
         // Burn the rest
         if total_burn > 0 {
-            token::burn(
+            token_interface::burn_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
-                    Burn {
+                    BurnChecked {
                         mint: ctx.accounts.token_mint.to_account_info(),
                         from: ctx.accounts.throne_vault.to_account_info(),
                         authority: game_state.to_account_info(),
@@ -105,6 +111,7 @@ pub fn handler(ctx: Context<FinalizeBattle>) -> Result<()> {
                     signer_seeds,
                 ),
                 total_burn,
+                decimals,
             )?;
         }
 
@@ -123,10 +130,10 @@ pub fn handler(ctx: Context<FinalizeBattle>) -> Result<()> {
             .ok_or(HotCrownError::Overflow)?;
 
         if total_burn > 0 {
-            token::burn(
+            token_interface::burn_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
-                    Burn {
+                    BurnChecked {
                         mint: ctx.accounts.token_mint.to_account_info(),
                         from: ctx.accounts.throne_vault.to_account_info(),
                         authority: game_state.to_account_info(),
@@ -134,6 +141,7 @@ pub fn handler(ctx: Context<FinalizeBattle>) -> Result<()> {
                     signer_seeds,
                 ),
                 total_burn,
+                decimals,
             )?;
         }
 

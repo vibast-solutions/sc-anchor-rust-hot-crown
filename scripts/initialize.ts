@@ -3,7 +3,7 @@ import { Program } from "@coral-xyz/anchor";
 import { HotCrown } from "../target/types/hot_crown";
 import {
   getAssociatedTokenAddress,
-  TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 
@@ -15,7 +15,7 @@ async function main() {
   const admin = provider.wallet;
 
   const tokenMint = new anchor.web3.PublicKey(
-    "8gKUgdkSGMqQMgCxnMQEDV19Eb3riysKgh9MvbEDiNhf"
+    "Gk9B6f3LBmmRhniF1Q3fnvzWV1vjBS4cfxpc4XN8xirp"
   );
 
   // Derive PDA
@@ -24,17 +24,20 @@ async function main() {
     program.programId
   );
 
-  // Throne vault ATA (owned by PDA)
+  // Throne vault ATA (owned by PDA, Token-2022)
   const throneVault = await getAssociatedTokenAddress(
     tokenMint,
     gameStatePda,
-    true
+    true,
+    TOKEN_2022_PROGRAM_ID
   );
 
-  // Dev wallet ATA (admin's own ATA)
+  // Dev wallet ATA (admin's own ATA, Token-2022)
   const devWalletAta = await getAssociatedTokenAddress(
     tokenMint,
-    admin.publicKey
+    admin.publicKey,
+    false,
+    TOKEN_2022_PROGRAM_ID
   );
 
   console.log("Program ID:", program.programId.toBase58());
@@ -55,7 +58,7 @@ async function main() {
       throneVault,
       devWalletAta,
       systemProgram: anchor.web3.SystemProgram.programId,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
     })
     .rpc();

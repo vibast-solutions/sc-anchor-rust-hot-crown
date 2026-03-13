@@ -5,10 +5,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-hot_crown = "9nogRVSxxkHBBHfqzznqPqcVrUedmhoMBqvD1Xp3bd7x"
+hot_crown = "CnyJZNQRtwJcfwHcXSSi2TXYwwWx3vffeRJfu5qLEMAV"
 
 [programs.devnet]
-hot_crown = "9nogRVSxxkHBBHfqzznqPqcVrUedmhoMBqvD1Xp3bd7x"
+hot_crown = "CnyJZNQRtwJcfwHcXSSi2TXYwwWx3vffeRJfu5qLEMAV"
 
 [registry]
 url = "https://api.apr.dev"

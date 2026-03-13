@@ -8,8 +8,7 @@ pub mod state;
 
 use instructions::*;
 
-// TODO: Replace with actual program ID after `anchor keys list`
-declare_id!("9nogRVSxxkHBBHfqzznqPqcVrUedmhoMBqvD1Xp3bd7x");
+declare_id!("CnyJZNQRtwJcfwHcXSSi2TXYwwWx3vffeRJfu5qLEMAV");
 
 #[program]
 pub mod hot_crown {

@@ -12,3 +12,6 @@ pub const BPS_DENOMINATOR: u64 = 10_000;
 
 pub const MIN_SOLDIERS_PER_ACTION: u64 = 1;
 pub const MAX_SOLDIERS_PER_ACTION: u64 = 10;
+
+pub const TOKEN_DECIMALS: u8 = 6;
+pub const ONE_TOKEN: u64 = 1_000_000; // 10^6

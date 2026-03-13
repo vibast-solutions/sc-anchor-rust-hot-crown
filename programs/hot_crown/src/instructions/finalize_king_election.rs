@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token_2022::Token2022;
+use anchor_spl::token_interface::{self, Mint, TokenAccount, TransferChecked};
 
 use crate::constants::*;
 use crate::errors::HotCrownError;
@@ -20,19 +21,27 @@ pub struct FinalizeKingElection<'info> {
     /// PDA-owned vault
     #[account(
         mut,
-        associated_token::mint = game_state.token_mint,
+        associated_token::mint = token_mint,
         associated_token::authority = game_state,
+        associated_token::token_program = token_program,
     )]
-    pub throne_vault: Account<'info, TokenAccount>,
+    pub throne_vault: InterfaceAccount<'info, TokenAccount>,
 
     /// The candidate's (soon-to-be king's) token account to receive the throne pot
     #[account(
         mut,
-        token::mint = game_state.token_mint,
+        token::mint = token_mint,
+        token::token_program = token_program,
     )]
-    pub king_token_account: Account<'info, TokenAccount>,
+    pub king_token_account: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+    /// Token mint (needed for transfer_checked)
+    #[account(
+        constraint = token_mint.key() == game_state.token_mint @ HotCrownError::InvalidPhase,
+    )]
+    pub token_mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Program<'info, Token2022>,
 }
 
 pub fn handler(ctx: Context<FinalizeKingElection>) -> Result<()> {
@@ -61,17 +70,19 @@ pub fn handler(ctx: Context<FinalizeKingElection>) -> Result<()> {
         let seeds = &[GAME_STATE_SEED, &[game_state.bump]];
         let signer_seeds = &[&seeds[..]];
 
-        token::transfer(
+        token_interface::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
-                Transfer {
+                TransferChecked {
                     from: ctx.accounts.throne_vault.to_account_info(),
+                    mint: ctx.accounts.token_mint.to_account_info(),
                     to: ctx.accounts.king_token_account.to_account_info(),
                     authority: game_state.to_account_info(),
                 },
                 signer_seeds,
             ),
             pot_amount,
+            TOKEN_DECIMALS,
         )?;
     }
 

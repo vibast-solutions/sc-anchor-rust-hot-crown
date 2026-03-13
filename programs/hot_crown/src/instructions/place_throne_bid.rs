@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token_2022::Token2022;
+use anchor_spl::token_interface::{self, BurnChecked, Mint, TokenAccount, TransferChecked};
 
 use crate::constants::*;
 use crate::errors::HotCrownError;
@@ -23,32 +24,34 @@ pub struct PlaceThroneBid<'info> {
         mut,
         token::mint = token_mint,
         token::authority = bidder,
+        token::token_program = token_program,
     )]
-    pub bidder_token_account: Account<'info, TokenAccount>,
+    pub bidder_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// PDA-owned vault holding throne pot + battle pools
     #[account(
         mut,
         associated_token::mint = token_mint,
         associated_token::authority = game_state,
+        associated_token::token_program = token_program,
     )]
-    pub throne_vault: Account<'info, TokenAccount>,
+    pub throne_vault: InterfaceAccount<'info, TokenAccount>,
 
     /// Dev wallet's token account for fee collection
     #[account(
         mut,
         constraint = dev_wallet_ata.key() == game_state.dev_wallet_ata @ HotCrownError::Unauthorized,
     )]
-    pub dev_wallet_ata: Account<'info, TokenAccount>,
+    pub dev_wallet_ata: InterfaceAccount<'info, TokenAccount>,
 
-    /// Token mint (needed for burn)
+    /// Token mint (needed for burn and transfer_checked)
     #[account(
         mut,
         constraint = token_mint.key() == game_state.token_mint @ HotCrownError::InvalidPhase,
     )]
-    pub token_mint: Account<'info, Mint>,
+    pub token_mint: InterfaceAccount<'info, Mint>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
 }
 
 pub fn handler(ctx: Context<PlaceThroneBid>) -> Result<()> {
@@ -81,42 +84,47 @@ pub fn handler(ctx: Context<PlaceThroneBid>) -> Result<()> {
         .ok_or(HotCrownError::Overflow)?;
 
     // Transfer dev fee: bidder -> dev wallet
-    token::transfer(
+    token_interface::transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            Transfer {
+            TransferChecked {
                 from: ctx.accounts.bidder_token_account.to_account_info(),
+                mint: ctx.accounts.token_mint.to_account_info(),
                 to: ctx.accounts.dev_wallet_ata.to_account_info(),
                 authority: ctx.accounts.bidder.to_account_info(),
             },
         ),
         dev_fee,
+        TOKEN_DECIMALS,
     )?;
 
     // Burn: from bidder's token account
-    token::burn(
+    token_interface::burn_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            Burn {
+            BurnChecked {
                 mint: ctx.accounts.token_mint.to_account_info(),
                 from: ctx.accounts.bidder_token_account.to_account_info(),
                 authority: ctx.accounts.bidder.to_account_info(),
             },
         ),
         burn_amount,
+        TOKEN_DECIMALS,
     )?;
 
     // Transfer pot amount: bidder -> throne vault
-    token::transfer(
+    token_interface::transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            Transfer {
+            TransferChecked {
                 from: ctx.accounts.bidder_token_account.to_account_info(),
+                mint: ctx.accounts.token_mint.to_account_info(),
                 to: ctx.accounts.throne_vault.to_account_info(),
                 authority: ctx.accounts.bidder.to_account_info(),
             },
         ),
         pot_amount,
+        TOKEN_DECIMALS,
     )?;
 
     // Update state

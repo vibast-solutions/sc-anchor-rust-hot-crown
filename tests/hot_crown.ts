@@ -7,6 +7,7 @@ import {
   mintTo,
   getAssociatedTokenAddress,
   getAccount,
+  TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
 import { assert } from "chai";
 
@@ -46,13 +47,16 @@ describe("hot_crown", () => {
       await provider.connection.confirmTransaction(sig);
     }
 
-    // Create token mint
+    // Create Token-2022 mint
     tokenMint = await createMint(
       provider.connection,
       (admin as any).payer,
       admin.publicKey,
       null,
-      6
+      6,
+      undefined,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
     );
 
     // Derive PDA
@@ -62,39 +66,48 @@ describe("hot_crown", () => {
         program.programId
       );
 
-    // Get throne vault ATA (PDA-owned)
+    // Get throne vault ATA (PDA-owned, Token-2022)
     throneVault = await getAssociatedTokenAddress(
       tokenMint,
       gameStatePda,
-      true
+      true,
+      TOKEN_2022_PROGRAM_ID
     );
 
-    // Create dev wallet ATA
+    // Create dev wallet ATA (Token-2022)
     devWalletAta = await createAssociatedTokenAccount(
       provider.connection,
       (admin as any).payer,
       tokenMint,
-      admin.publicKey
+      admin.publicKey,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
     );
 
-    // Create player ATAs and mint tokens
+    // Create player ATAs and mint tokens (Token-2022)
     player1Ata = await createAssociatedTokenAccount(
       provider.connection,
       (admin as any).payer,
       tokenMint,
-      player1.publicKey
+      player1.publicKey,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
     );
     player2Ata = await createAssociatedTokenAccount(
       provider.connection,
       (admin as any).payer,
       tokenMint,
-      player2.publicKey
+      player2.publicKey,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
     );
     player3Ata = await createAssociatedTokenAccount(
       provider.connection,
       (admin as any).payer,
       tokenMint,
-      player3.publicKey
+      player3.publicKey,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
     );
 
     for (const ata of [player1Ata, player2Ata, player3Ata]) {
@@ -104,7 +117,10 @@ describe("hot_crown", () => {
         tokenMint,
         ata,
         admin.publicKey,
-        INITIAL_BALANCE
+        INITIAL_BALANCE,
+        undefined,
+        undefined,
+        TOKEN_2022_PROGRAM_ID
       );
     }
   });
@@ -120,6 +136,7 @@ describe("hot_crown", () => {
         tokenMint,
         throneVault,
         devWalletAta,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .rpc();
 
@@ -196,7 +213,7 @@ describe("hot_crown", () => {
   // ─── Bidding Phase ────────────────────────────────────────────────
 
   it("player 1 places bid #1 (1 token)", async () => {
-    const devBalBefore = (await getAccount(provider.connection, devWalletAta))
+    const devBalBefore = (await getAccount(provider.connection, devWalletAta, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
 
     await program.methods
@@ -208,6 +225,7 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player1])
       .rpc();
@@ -221,7 +239,7 @@ describe("hot_crown", () => {
     assert.notEqual(state.biddingDeadline.toNumber(), 0);
 
     // Dev got 10% = 100,000
-    const devBalAfter = (await getAccount(provider.connection, devWalletAta))
+    const devBalAfter = (await getAccount(provider.connection, devWalletAta, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
     assert.equal(
       Number(devBalAfter) - Number(devBalBefore),
@@ -229,7 +247,7 @@ describe("hot_crown", () => {
     );
 
     // Vault got 80% = 800,000
-    const vaultBal = (await getAccount(provider.connection, throneVault))
+    const vaultBal = (await getAccount(provider.connection, throneVault, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
     assert.equal(Number(vaultBal), 800_000);
   });
@@ -244,6 +262,7 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player2])
       .rpc();
@@ -273,6 +292,7 @@ describe("hot_crown", () => {
           throneVault,
           devWalletAta,
           tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers([player3])
         .rpc();
@@ -300,6 +320,8 @@ describe("hot_crown", () => {
           gameState: gameStatePda,
           throneVault,
           kingTokenAccount: king2Ata,
+          tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .rpc();
       assert.fail("Should have thrown");
@@ -310,10 +332,10 @@ describe("hot_crown", () => {
 
   it("finalizes king election after timer expires", async () => {
     // Wait for 2-second timer to expire
-    await sleep(3000);
+    await sleep(4000);
 
     const player2BalBefore = (
-      await getAccount(provider.connection, player2Ata)
+      await getAccount(provider.connection, player2Ata, undefined, TOKEN_2022_PROGRAM_ID)
     ).amount;
 
     await program.methods
@@ -323,6 +345,8 @@ describe("hot_crown", () => {
         gameState: gameStatePda,
         throneVault,
         kingTokenAccount: player2Ata,
+        tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .rpc();
 
@@ -339,7 +363,7 @@ describe("hot_crown", () => {
 
     // Player 2 received the throne pot (2,400,000)
     const player2BalAfter = (
-      await getAccount(provider.connection, player2Ata)
+      await getAccount(provider.connection, player2Ata, undefined, TOKEN_2022_PROGRAM_ID)
     ).amount;
     assert.equal(
       Number(player2BalAfter) - Number(player2BalBefore),
@@ -347,7 +371,7 @@ describe("hot_crown", () => {
     );
 
     // Vault should be empty
-    const vaultBal = (await getAccount(provider.connection, throneVault))
+    const vaultBal = (await getAccount(provider.connection, throneVault, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
     assert.equal(Number(vaultBal), 0);
   });
@@ -365,6 +389,7 @@ describe("hot_crown", () => {
           throneVault,
           devWalletAta,
           tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers([player1])
         .rpc();
@@ -385,6 +410,7 @@ describe("hot_crown", () => {
           throneVault,
           devWalletAta,
           tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers([player3])
         .rpc();
@@ -405,6 +431,7 @@ describe("hot_crown", () => {
           throneVault,
           devWalletAta,
           tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers([player1])
         .rpc();
@@ -425,6 +452,7 @@ describe("hot_crown", () => {
           throneVault,
           devWalletAta,
           tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers([player1])
         .rpc();
@@ -435,7 +463,7 @@ describe("hot_crown", () => {
   });
 
   it("player 1 attacks with 5 soldiers (first attack starts battle)", async () => {
-    const devBalBefore = (await getAccount(provider.connection, devWalletAta))
+    const devBalBefore = (await getAccount(provider.connection, devWalletAta, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
 
     await program.methods
@@ -447,6 +475,7 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player1])
       .rpc();
@@ -459,7 +488,7 @@ describe("hot_crown", () => {
     assert.equal(state.attackPool.toNumber(), 4_500_000);
     assert.notEqual(state.battleDeadline.toNumber(), 0);
 
-    const devBalAfter = (await getAccount(provider.connection, devWalletAta))
+    const devBalAfter = (await getAccount(provider.connection, devWalletAta, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
     assert.equal(Number(devBalAfter) - Number(devBalBefore), 500_000);
   });
@@ -477,6 +506,7 @@ describe("hot_crown", () => {
           throneVault,
           devWalletAta,
           tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers([player1])
         .rpc();
@@ -498,6 +528,7 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player3])
       .rpc();
@@ -520,15 +551,12 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player3])
       .rpc();
 
-    // Now defense=5, attack=5 → tied, so defense NOT allowed (attack >= defense is false because attack == defense... wait)
-    // Turn restriction for defend: attack >= defense must hold. 5 >= 5 → true, so defend IS allowed.
-    // Actually after this defend, defense=5, attack=5. Next defend: attack(5) >= defense(5) → true, allowed.
-    // We need attack to be behind. Let's defend one more to make defense > attack.
-    // Hmm, but defend requires attack >= defense. defense=5, attack=5 → 5>=5 = true.
+    // Now defense=5, attack=5 → tied, so defense IS allowed.
     await program.methods
       .defend(new anchor.BN(1))
       .accounts({
@@ -538,6 +566,7 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player3])
       .rpc();
@@ -553,6 +582,7 @@ describe("hot_crown", () => {
           throneVault,
           devWalletAta,
           tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers([player3])
         .rpc();
@@ -573,6 +603,7 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player1])
       .rpc();
@@ -594,6 +625,7 @@ describe("hot_crown", () => {
           throneVault,
           kingTokenAccount: player2Ata,
           tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .rpc();
       assert.fail("Should have thrown");
@@ -603,9 +635,9 @@ describe("hot_crown", () => {
   });
 
   it("finalizes battle — king defeated (attack > defense), all burned", async () => {
-    await sleep(3000);
+    await sleep(4000);
 
-    const vaultBefore = (await getAccount(provider.connection, throneVault))
+    const vaultBefore = (await getAccount(provider.connection, throneVault, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
     assert.isAbove(Number(vaultBefore), 0, "Vault should have tokens");
 
@@ -617,6 +649,7 @@ describe("hot_crown", () => {
         throneVault,
         kingTokenAccount: player2Ata,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .rpc();
 
@@ -632,7 +665,7 @@ describe("hot_crown", () => {
     assert.equal(state.nextBidAmount.toNumber(), 1);
 
     // Vault should be empty (all burned)
-    const vaultAfter = (await getAccount(provider.connection, throneVault))
+    const vaultAfter = (await getAccount(provider.connection, throneVault, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
     assert.equal(Number(vaultAfter), 0);
   });
@@ -650,6 +683,7 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player3])
       .rpc();
@@ -658,7 +692,7 @@ describe("hot_crown", () => {
     assert.ok(state.candidate.equals(player3.publicKey));
 
     // Wait for timer
-    await sleep(3000);
+    await sleep(4000);
 
     // Finalize king election
     await program.methods
@@ -668,6 +702,8 @@ describe("hot_crown", () => {
         gameState: gameStatePda,
         throneVault,
         kingTokenAccount: player3Ata,
+        tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .rpc();
 
@@ -685,6 +721,7 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player1])
       .rpc();
@@ -699,6 +736,7 @@ describe("hot_crown", () => {
         throneVault,
         devWalletAta,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([player2])
       .rpc();
@@ -708,9 +746,9 @@ describe("hot_crown", () => {
     assert.equal(state.defenseSoldiers.toNumber(), 5);
 
     // Wait for battle timer
-    await sleep(3000);
+    await sleep(4000);
 
-    const kingBalBefore = (await getAccount(provider.connection, player3Ata))
+    const kingBalBefore = (await getAccount(provider.connection, player3Ata, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
 
     // Finalize battle — king survives (defense 5 >= attack 3)
@@ -722,6 +760,7 @@ describe("hot_crown", () => {
         throneVault,
         kingTokenAccount: player3Ata,
         tokenMint,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .rpc();
 
@@ -736,7 +775,7 @@ describe("hot_crown", () => {
     // King gets 50% of defense pool
     // Defense: 5 tokens = 5,000,000. Dev fee = 500,000. Army pool = 4,500,000
     // King payout = 4,500,000 / 2 = 2,250,000
-    const kingBalAfter = (await getAccount(provider.connection, player3Ata))
+    const kingBalAfter = (await getAccount(provider.connection, player3Ata, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
     assert.equal(
       Number(kingBalAfter) - Number(kingBalBefore),
@@ -744,7 +783,7 @@ describe("hot_crown", () => {
     );
 
     // Vault empty (rest burned)
-    const vaultBal = (await getAccount(provider.connection, throneVault))
+    const vaultBal = (await getAccount(provider.connection, throneVault, undefined, TOKEN_2022_PROGRAM_ID))
       .amount;
     assert.equal(Number(vaultBal), 0);
   });
@@ -768,6 +807,7 @@ describe("hot_crown", () => {
             throneVault,
             devWalletAta,
             tokenMint,
+            tokenProgram: TOKEN_2022_PROGRAM_ID,
           })
           .signers([player1])
           .rpc();
@@ -788,6 +828,7 @@ describe("hot_crown", () => {
           throneVault,
           kingTokenAccount: player3Ata,
           tokenMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .rpc();
       assert.fail("Should have thrown");
