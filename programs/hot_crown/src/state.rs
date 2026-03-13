@@ -1,12 +1,13 @@
 use anchor_lang::prelude::*;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
 pub enum GamePhase {
     Bidding,
     Battle,
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct GameState {
     // --- Config ---
     pub admin: Pubkey,

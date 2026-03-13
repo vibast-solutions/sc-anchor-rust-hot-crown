@@ -13,7 +13,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = admin,
-        space = GAME_STATE_SPACE,
+        space = 8 + GameState::INIT_SPACE,
         seeds = [GAME_STATE_SEED],
         bump,
     )]
